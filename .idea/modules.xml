@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea/JFX-Macios.iml" filepath="$PROJECT_DIR$/.idea/JFX-Macios.iml" />
+      <module fileurl="file://$PROJECT_DIR$/macios.iml" filepath="$PROJECT_DIR$/macios.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/macios.main.iml" filepath="$PROJECT_DIR$/.idea/modules/macios.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/macios.test.iml" filepath="$PROJECT_DIR$/.idea/modules/macios.test.iml" />
+    </modules>
+  </component>
+</project>
