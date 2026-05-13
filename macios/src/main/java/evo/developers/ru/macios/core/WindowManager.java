@@ -20,7 +20,30 @@ public class WindowManager extends Manager {
     }
 
     public static Pointer getCurrentWindow(String windowName) {
-        return getFirstWindow(); //TODO Get pointer window by name
+        Pointer app = msg(cls("NSApplication"), sel("sharedApplication"));
+        Pointer windows = msg(app, sel("windows"));
+
+        long count = msgLong(windows, sel("count"));
+
+        for (long i = 0; i < count; i++) {
+            Pointer window = msg(windows, sel("objectAtIndex:"), i);
+
+            Pointer titlePtr = msg(window, sel("title"));
+            String title = nsStringToString(titlePtr);
+
+            if (windowName.equals(title)) {
+                return window;
+            }
+        }
+
+        return null;
+    }
+
+    public static String nsStringToString(Pointer nsString) {
+        if (nsString == null) return null;
+
+        Pointer utf8 = msg(nsString, sel("UTF8String"));
+        return utf8.getString(0);
     }
 
 

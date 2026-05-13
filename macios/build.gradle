@@ -1,5 +1,6 @@
 plugins {
     id 'java'
+    id 'maven-publish'
 }
 
 group = 'evo.developers.ru'
@@ -9,14 +10,18 @@ repositories {
     mavenCentral()
 }
 
-java{
+java {
     sourceCompatibility = JavaVersion.VERSION_11
     targetCompatibility = JavaVersion.VERSION_11
+
+    withSourcesJar()
+    withJavadocJar()
 }
 
 dependencies {
     compileOnly("org.projectlombok:lombok:1.18.42")
     annotationProcessor("org.projectlombok:lombok:1.18.42")
+
     implementation("net.java.dev.jna:jna-platform:5.18.1")
     implementation("net.java.dev.jna:jna:5.18.1")
 
@@ -27,4 +32,20 @@ dependencies {
 
 test {
     useJUnitPlatform()
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+
+            groupId = project.group
+            artifactId = 'jfx-macios'
+            version = project.version
+        }
+    }
+
+    repositories {
+        mavenLocal()
+    }
 }

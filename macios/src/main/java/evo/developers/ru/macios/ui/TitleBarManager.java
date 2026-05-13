@@ -20,9 +20,9 @@ public class TitleBarManager extends Manager {
     /**
      * Enable dragging window by its background.
      */
-    public static void enableWindowDrag() {
+    public static void enableWindowDrag(String title) {
         try {
-            Pointer window = WindowManager.getCurrentWindow("");
+            Pointer window = WindowManager.getCurrentWindow(title);
             if (window == null) return;
 
             msg(window, sel("setMovable:"), 1L);
@@ -39,9 +39,9 @@ public class TitleBarManager extends Manager {
      * - Window snapping (drag to top/sides)
      * - Smooth animation
      */
-    public static void startWindowDrag() {
+    public static void startWindowDrag(String title) {
         try {
-            Pointer window = WindowManager.getCurrentWindow("");
+            Pointer window = WindowManager.getCurrentWindow(title);
             if (window == null) return;
 
             // Get current event from NSApp
@@ -68,9 +68,9 @@ public class TitleBarManager extends Manager {
      * Keeps native traffic lights visible and functional.
      * Native drag and window snapping all work.
      */
-    public static void setupTransparentTitlebar() {
+    public static void setupTransparentTitlebar(String title) {
         try {
-            Pointer window = WindowManager.getCurrentWindow("");
+            Pointer window = WindowManager.getCurrentWindow(title);
             if (window == null) return;
 
             // Get current style mask and add FullSizeContentView
@@ -98,6 +98,41 @@ public class TitleBarManager extends Manager {
             System.out.println("WindowBlur: Transparent titlebar with native behavior");
         } catch (Exception e) {
             System.out.println("WindowBlur error: " + e.getMessage());
+        }
+    }
+
+    public static void setupNoTitlebar(String title, long visiblityTitleText) {
+        try {
+            Pointer window = WindowManager.getCurrentWindow(title);
+            if (window == null) return;
+
+            long currentMask = msgLong(window, sel("styleMask"));
+            long newMask = currentMask | NSWindowStyleMaskFullSizeContentView;
+
+            msg(window, sel("setStyleMask:"), newMask);
+
+            msg(window, sel("setTitlebarAppearsTransparent:"), 1L);
+            msg(window, sel("setTitleVisibility:"), visiblityTitleText);
+
+            msg(window, sel("setMovable:"), 1L);
+            msg(window, sel("setMovableByWindowBackground:"), 1L);
+
+            hideWindowButton(window, 0);
+            hideWindowButton(window, 1);
+            hideWindowButton(window, 2);
+
+            System.out.println("WindowBlur: buttons hidden");
+
+        } catch (Exception e) {
+            System.out.println("WindowBlur error: " + e.getMessage());
+        }
+    }
+
+    private static void hideWindowButton(Pointer window, int type) {
+        Pointer button = msg(window, sel("standardWindowButton:"), (long) type);
+
+        if (button != null && Pointer.nativeValue(button) != 0) {
+            msg(button, sel("setHidden:"), 1L);
         }
     }
 }

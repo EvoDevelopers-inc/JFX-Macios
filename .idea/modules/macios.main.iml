@@ -3,12 +3,17 @@
   <component name="NewModuleRootManager" LANGUAGE_LEVEL="JDK_11">
     <output url="file://$MODULE_DIR$/../../macios/build/classes/java/main" />
     <exclude-output />
+    <content url="file://$MODULE_DIR$/../../macios/build/generated/sources/annotationProcessor/java/main">
+      <sourceFolder url="file://$MODULE_DIR$/../../macios/build/generated/sources/annotationProcessor/java/main" isTestSource="false" generated="true" />
+    </content>
     <content url="file://$MODULE_DIR$/../../macios/src/main">
       <sourceFolder url="file://$MODULE_DIR$/../../macios/src/main/java" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/../../macios/src/main/resources" type="java-resource" />
     </content>
-    <orderEntry type="inheritedJdk" />
+    <orderEntry type="jdk" jdkName="zulu-21 (2)" jdkType="JavaSDK" />
     <orderEntry type="sourceFolder" forTests="false" />
+    <orderEntry type="library" scope="PROVIDED" name="Gradle: org.projectlombok:lombok:1.18.42" level="project" />
+    <orderEntry type="library" name="Gradle: net.java.dev.jna:jna-platform:5.18.1" level="project" />
     <orderEntry type="library" name="Gradle: net.java.dev.jna:jna:5.18.1" level="project" />
   </component>
 </module>

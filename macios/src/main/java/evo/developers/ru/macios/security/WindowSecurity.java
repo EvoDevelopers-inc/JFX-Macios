@@ -24,20 +24,20 @@ public class WindowSecurity extends Manager {
         WindowSharingType(long value) { this.value = value; }
     }
     
-    public void setSecure(boolean secure) {
-        setWindowSharingType(secure ? WindowSharingType.NONE : WindowSharingType.READ_ONLY);
+    public void setSecure(String title, boolean secure) {
+        setWindowSharingType(title, secure ? WindowSharingType.NONE : WindowSharingType.READ_ONLY);
     }
     
-    public boolean isSecure() {
-        Pointer window = WindowManager.getCurrentWindow("");
+    public boolean isSecure(String title) {
+        Pointer window = WindowManager.getCurrentWindow(title);
         if (window == null) return false;
         long sharingType = ObjC.msgLong(window, sel("sharingType"));
         return sharingType == WindowSharingType.NONE.value;
     }
 
-    public static void setWindowSharingType(WindowSharingType type) {
+    public static void setWindowSharingType(String title, WindowSharingType type) {
         try {
-            Pointer window = WindowManager.getCurrentWindow("");
+            Pointer window = WindowManager.getCurrentWindow(title);
             if (window == null) return;
 
             msg(window, sel("setSharingType:"), type.value);

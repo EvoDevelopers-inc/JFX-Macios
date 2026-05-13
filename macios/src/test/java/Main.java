@@ -76,7 +76,7 @@ public class Main extends Application {
         // Title bar
         HBox header = createTitleBar();
         header.setPrefHeight(50);
-        header.setOnMousePressed(e -> helperMacOS.getTitleBarManager().startWindowDrag());
+        header.setOnMousePressed(e -> helperMacOS.getTitleBarManager().startWindowDrag(stage.getTitle()));
 
         root.setTop(header);
 
@@ -103,8 +103,8 @@ public class Main extends Application {
         stage.setScene(scene);
         stage.setOnShown(e -> Platform.runLater(() -> {
             // Setup transparent titlebar
-            helperMacOS.getTitleBarManager().setupTransparentTitlebar();
-            helperMacOS.getTitleBarManager().enableWindowDrag();
+            helperMacOS.getTitleBarManager().setupNoTitlebar(stage.getTitle(), 0);
+            helperMacOS.getTitleBarManager().enableWindowDrag(stage.getTitle());
 
             // Apply initial blur
             helperMacOS.getBlurEffect().apply(stage, BlurEffectManager.Style.DARK_AQUA);
@@ -688,7 +688,7 @@ public class Main extends Application {
             "-fx-text-fill: white;"
         );
         securityToggle.selectedProperty().addListener((obs, old, selected) -> {
-            helperMacOS.getWindowSecurity().setSecure(selected);
+            helperMacOS.getWindowSecurity().setSecure(primaryStage.getTitle(), selected);
             String accentRgb = String.format("rgba(%d,%d,%d,0.5)", 
                 (int)(accentColor.getRed() * 255),
                 (int)(accentColor.getGreen() * 255),
