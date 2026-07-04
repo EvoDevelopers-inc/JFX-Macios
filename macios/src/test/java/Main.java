@@ -6,6 +6,7 @@ import evo.developers.ru.macios.ui.ThemeManager;
 import evo.developers.ru.macios.ui.TitleBarManager;
 import evo.developers.ru.macios.ux.dockbadge.DockBadgeManager;
 import evo.developers.ru.macios.ux.haptic.HapticManager;
+import evo.developers.ru.macios.ux.nowplaying.NowPlayingManager;
 import evo.developers.ru.macios.ux.notification.NotificationManager;
 import evo.developers.ru.macios.ux.sound.SoundManager;
 import javafx.application.Application;
@@ -252,6 +253,26 @@ public class Main extends Application {
         VBox notificationCard = createNotificationCard();
         cards.add(notificationCard);
         content.getChildren().add(notificationCard);
+
+        // Menu bar tray Card
+        VBox trayCard = createTrayCard();
+        cards.add(trayCard);
+        content.getChildren().add(trayCard);
+
+        // Native menus Card (app menu bar + Dock menu)
+        VBox menuCard = createMenuCard();
+        cards.add(menuCard);
+        content.getChildren().add(menuCard);
+
+        // Touch ID Card
+        VBox biometricCard = createBiometricCard();
+        cards.add(biometricCard);
+        content.getChildren().add(biometricCard);
+
+        // Now Playing Card
+        VBox nowPlayingCard = createNowPlayingCard();
+        cards.add(nowPlayingCard);
+        content.getChildren().add(nowPlayingCard);
 
         // Sounds Card
         VBox soundsCard = createSoundsCard();
@@ -673,6 +694,204 @@ public class Main extends Application {
         return card;
     }
 
+    private VBox createTrayCard() {
+        VBox card = createCard("🧭 Menu Bar Tray", "NSStatusBar item with a native menu");
+
+        VBox controls = new VBox(15);
+        controls.setPadding(new Insets(15, 0, 0, 0));
+
+        Label status = new Label("Tray: hidden");
+        status.setStyle("-fx-text-fill: rgba(255,255,255,0.9); -fx-font-size: 14px;");
+
+        HBox buttons = new HBox(10);
+        buttons.setAlignment(Pos.CENTER_LEFT);
+
+        Button showBtn = new Button("Show tray icon");
+        styleButton(showBtn);
+        Button removeBtn = new Button("Remove tray");
+        styleButton(removeBtn);
+
+        showBtn.setOnAction(e -> {
+            helperMacOS.getStatusBar().show("◆ JFX");
+            helperMacOS.getStatusBar().setSymbolIcon("sparkles");
+            helperMacOS.getStatusBar().addItem("Say hello", () ->
+                NotificationManager.sendNotification("JFX-Macios", "Hello from the tray!", UUID.randomUUID().toString()));
+            helperMacOS.getStatusBar().addItem("Bring window to front", () -> primaryStage.toFront());
+            helperMacOS.getStatusBar().addSeparator();
+            helperMacOS.getStatusBar().addQuitItem("Quit");
+            status.setText("Tray: shown (click the ◆ in the menu bar)");
+        });
+        removeBtn.setOnAction(e -> {
+            helperMacOS.getStatusBar().remove();
+            status.setText("Tray: hidden");
+        });
+
+        buttons.getChildren().addAll(showBtn, removeBtn);
+        controls.getChildren().addAll(status, buttons);
+        card.getChildren().add(controls);
+        return card;
+    }
+
+    private VBox createMenuCard() {
+        VBox card = createCard("📋 Native Menus", "Custom app menu bar + Dock right-click menu");
+
+        VBox controls = new VBox(15);
+        controls.setPadding(new Insets(15, 0, 0, 0));
+
+        Label status = new Label("Nothing installed yet");
+        status.setStyle("-fx-text-fill: rgba(255,255,255,0.85); -fx-font-size: 13px;");
+
+        Runnable notify = () -> Platform.runLater(() ->
+            status.setText("Last action fired at " + java.time.LocalTime.now().withNano(0)));
+
+        Button menuBarBtn = new Button("Install app menu bar");
+        styleButton(menuBarBtn);
+        menuBarBtn.setOnAction(e -> {
+            helperMacOS.getMenuBar()
+                .appName("JFX-Macios")
+                .addMenu("File", m -> m
+                    .item("New Window", "n", () -> { primaryStage.toFront(); notify.run(); })
+                    .item("Send Notification", () -> {
+                        NotificationManager.sendNotification("JFX-Macios", "Hello from the menu bar!",
+                            UUID.randomUUID().toString());
+                        notify.run();
+                    })
+                    .separator()
+                    .appItem("Close Window", "performClose:", "w"))
+                .addMenu("View", m -> m
+                    .item("Bring to Front", () -> { primaryStage.toFront(); notify.run(); })
+                    .item("Minimize", "m", () -> { primaryStage.setIconified(true); notify.run(); }))
+                .addMenu("Help", m -> m
+                    .item("About JFX-Macios", () -> {
+                        NotificationManager.sendNotification("JFX-Macios",
+                            "JavaFX + native macOS integration", UUID.randomUUID().toString());
+                        notify.run();
+                    }))
+                .apply();
+            status.setText("App menu bar installed — check the top menu bar");
+        });
+
+        Button dockBtn = new Button("Install Dock menu");
+        styleButton(dockBtn);
+        dockBtn.setOnAction(e -> {
+            helperMacOS.getDockMenu().setMenu(m -> m
+                .item("New Window", () -> { primaryStage.toFront(); notify.run(); })
+                .separator()
+                .item("Say Hello", () -> {
+                    NotificationManager.sendNotification("JFX-Macios", "Hello from the Dock menu!",
+                        UUID.randomUUID().toString());
+                    notify.run();
+                })
+                .item("Bring to Front", () -> { primaryStage.toFront(); notify.run(); }));
+            status.setText("Dock menu installed — right-click the Dock icon");
+        });
+
+        HBox buttons = new HBox(10, menuBarBtn, dockBtn);
+        buttons.setAlignment(Pos.CENTER_LEFT);
+
+        controls.getChildren().addAll(status, buttons);
+        card.getChildren().add(controls);
+        return card;
+    }
+
+    private VBox createBiometricCard() {
+        VBox card = createCard("👆 Touch ID", "Biometric authentication via LocalAuthentication");
+
+        VBox controls = new VBox(15);
+        controls.setPadding(new Insets(15, 0, 0, 0));
+
+        boolean available = evo.developers.ru.macios.security.BiometricManager.isBiometricsAvailable();
+        Label availability = new Label(available ? "✅ Biometrics available" : "⚠️ Biometrics unavailable");
+        availability.setStyle("-fx-text-fill: rgba(255,255,255,0.9); -fx-font-size: 14px;");
+
+        Label result = new Label("Not authenticated");
+        result.setStyle("-fx-text-fill: rgba(255,255,255,0.75); -fx-font-size: 13px;");
+
+        Button authBtn = new Button("🔓 Authenticate");
+        styleButton(authBtn);
+        authBtn.setOnAction(e -> {
+            result.setText("Waiting for Touch ID…");
+            helperMacOS.getBiometric().authenticate("Confirm your identity to continue", (ok, err) ->
+                Platform.runLater(() -> {
+                    result.setText(ok ? "✅ Authenticated" : "❌ Failed: " + (err == null ? "cancelled" : err));
+                    helperMacOS.getHapticManager().haptic(
+                        HapticManager.HapticPattern.LEVEL_CHANGE, HapticManager.HapticTime.NOW);
+                }));
+        });
+
+        controls.getChildren().addAll(availability, authBtn, result);
+        card.getChildren().add(controls);
+        return card;
+    }
+
+    private boolean nowPlayingReady = false;
+
+    private VBox createNowPlayingCard() {
+        VBox card = createCard("🎵 Now Playing", "MPNowPlayingInfoCenter + media key handling");
+
+        VBox controls = new VBox(15);
+        controls.setPadding(new Insets(15, 0, 0, 0));
+
+        TextField titleField = new TextField("Liquid Dreams");
+        titleField.setPromptText("Track title");
+        titleField.setStyle("-fx-background-color: rgba(255,255,255,0.15); -fx-text-fill: white;");
+        TextField artistField = new TextField("JFX Macios");
+        artistField.setPromptText("Artist");
+        artistField.setStyle("-fx-background-color: rgba(255,255,255,0.15); -fx-text-fill: white;");
+
+        Label lastCommand = new Label("Media keys: (press ▶/⏸ after setting)");
+        lastCommand.setStyle("-fx-text-fill: rgba(255,255,255,0.75); -fx-font-size: 13px;");
+
+        Runnable ensureCommands = () -> {
+            if (nowPlayingReady) return;
+            nowPlayingReady = true;
+            NowPlayingManager np = helperMacOS.getNowPlaying();
+            np.enableRemoteCommands();
+            np.onToggle(() -> { Platform.runLater(() -> lastCommand.setText("Media keys: toggle ⏯")); return true; });
+            np.onPlay(() -> { Platform.runLater(() -> lastCommand.setText("Media keys: play ▶")); return true; });
+            np.onPause(() -> { Platform.runLater(() -> lastCommand.setText("Media keys: pause ⏸")); return true; });
+            np.onNext(() -> { Platform.runLater(() -> lastCommand.setText("Media keys: next ⏭")); return true; });
+            np.onPrevious(() -> { Platform.runLater(() -> lastCommand.setText("Media keys: previous ⏮")); return true; });
+        };
+
+        Button setBtn = new Button("Set Now Playing");
+        styleButton(setBtn);
+        setBtn.setOnAction(e -> {
+            ensureCommands.run();
+            helperMacOS.getNowPlaying().setNowPlaying(
+                titleField.getText(), artistField.getText(), "JFX-Macios", 240, 0);
+            helperMacOS.getNowPlaying().setPlaybackState(NowPlayingManager.STATE_PLAYING);
+            lastCommand.setText("Now Playing set — check Control Center");
+        });
+
+        Button playBtn = new Button("▶ Playing");
+        styleButton(playBtn);
+        playBtn.setOnAction(e ->
+            helperMacOS.getNowPlaying().setPlaybackState(NowPlayingManager.STATE_PLAYING));
+
+        Button pauseBtn = new Button("⏸ Paused");
+        styleButton(pauseBtn);
+        pauseBtn.setOnAction(e ->
+            helperMacOS.getNowPlaying().setPlaybackState(NowPlayingManager.STATE_PAUSED));
+
+        Button clearBtn = new Button("Clear");
+        styleButton(clearBtn);
+        clearBtn.setOnAction(e -> {
+            helperMacOS.getNowPlaying().clear();
+            lastCommand.setText("Now Playing cleared");
+        });
+
+        HBox stateButtons = new HBox(10, setBtn, playBtn, pauseBtn, clearBtn);
+        stateButtons.setAlignment(Pos.CENTER_LEFT);
+
+        controls.getChildren().addAll(
+            createLabel("Title:"), titleField,
+            createLabel("Artist:"), artistField,
+            stateButtons, lastCommand);
+        card.getChildren().add(controls);
+        return card;
+    }
+
     private VBox createSecurityCard() {
         VBox card = createCard("🔒 Window Security", "Protect window from screenshots and screen recording");
 
@@ -805,6 +1024,25 @@ public class Main extends Application {
             "-fx-text-fill: white;"
         );
 
+        Label response = new Label("Response: (interact with a notification)");
+        response.setStyle("-fx-text-fill: rgba(255,255,255,0.75); -fx-font-size: 12px;");
+        response.setWrapText(true);
+
+        // Listen for clicks / action button / inline replies.
+        NotificationManager.setListener((identifier, activationType, replyText) ->
+            Platform.runLater(() -> {
+                String kind;
+                switch (activationType) {
+                    case NotificationManager.ACTIVATION_ACTION_BUTTON: kind = "action button"; break;
+                    case NotificationManager.ACTIVATION_REPLIED: kind = "reply: \"" + replyText + "\""; break;
+                    case NotificationManager.ACTIVATION_CONTENTS_CLICKED: kind = "clicked"; break;
+                    default: kind = "type " + activationType;
+                }
+                response.setText("Response: " + kind);
+                helperMacOS.getHapticManager().haptic(
+                    HapticManager.HapticPattern.GENERIC, HapticManager.HapticTime.NOW);
+            }));
+
         Button sendBtn = new Button("📤 Send Notification");
         styleButton(sendBtn);
         sendBtn.setOnAction(e -> {
@@ -829,10 +1067,30 @@ public class Main extends Application {
             SoundManager.playNotificationSound();
         });
 
+        Button richBtn = new Button("✨ Send with action + reply");
+        styleButton(richBtn);
+        richBtn.setOnAction(e -> {
+            String title = notificationTitleField.getText().isEmpty()
+                ? "JFX-Macios" : notificationTitleField.getText();
+            String message = notificationMessageField.getText().isEmpty()
+                ? "Try the action button or reply field" : notificationMessageField.getText();
+            NotificationManager.sendRich(
+                title, "Demo", message, UUID.randomUUID().toString(),
+                "Open", true, "Type a reply…", null);
+            SoundManager.playNotificationSound();
+        });
+
+        Label hint = new Label("💡 Action/reply buttons require Alerts style in System Settings → Notifications");
+        hint.setStyle("-fx-text-fill: rgba(255,255,255,0.55); -fx-font-size: 11px;");
+        hint.setWrapText(true);
+
+        HBox notifButtons = new HBox(10, sendBtn, richBtn);
+        notifButtons.setAlignment(Pos.CENTER_LEFT);
+
         controls.getChildren().addAll(
             titleLabel, notificationTitleField,
             messageLabel, notificationMessageField,
-            sendBtn
+            notifButtons, response, hint
         );
         card.getChildren().add(controls);
 

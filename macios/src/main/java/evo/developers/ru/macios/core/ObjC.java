@@ -35,7 +35,22 @@ public class ObjC {
         return result != null ? (Long) result : 0L;
     }
 
+    /** Create an {@code NSString} from a Java string. */
+    public static Pointer nsString(String value) {
+        if (value == null) return Pointer.NULL;
+        return msg(cls("NSString"), sel("stringWithUTF8String:"), value);
+    }
 
+    /** Read a Java string from an {@code NSString} pointer (or {@code null}). */
+    public static String fromNSString(Pointer nsString) {
+        if (nsString == null || Pointer.nativeValue(nsString) == 0) return null;
+        Pointer utf8 = msg(nsString, sel("UTF8String"));
+        if (utf8 == null || Pointer.nativeValue(utf8) == 0) return null;
+        return utf8.getString(0);
+    }
 
-
+    /** @return {@code true} if the given pointer is non-null and non-zero. */
+    public static boolean isValid(Pointer p) {
+        return p != null && Pointer.nativeValue(p) != 0;
+    }
 }
