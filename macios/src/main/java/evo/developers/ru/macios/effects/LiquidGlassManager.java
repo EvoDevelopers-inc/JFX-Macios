@@ -36,6 +36,7 @@ public class LiquidGlassManager extends Manager {
     private static final long STATE_ACTIVE = 1;
 
     private Pointer glassWindow;
+    private Pointer glassContainer;
     private Pointer glassView;
     private Node attachedNode;
     private Node clipNode;
@@ -171,7 +172,15 @@ public class LiquidGlassManager extends Manager {
             }
         }
 
-        msg(w, sel("setContentView:"), glassView);
+        // Clipping container: the window backing (sized to the visible rect) clips the glass view,
+        // which keeps its full anchor size and is only offset — so scrolling clips, not resizes.
+        glassContainer = msg(msg(cls("NSView"), sel("alloc")), sel("initWithFrame:"), rect);
+        msg(glassContainer, sel("setWantsLayer:"), 1L);
+        Pointer clayer = msg(glassContainer, sel("layer"));
+        if (isValid(clayer)) msg(clayer, sel("setMasksToBounds:"), 1L);
+
+        msg(glassContainer, sel("addSubview:"), glassView);
+        msg(w, sel("setContentView:"), glassContainer);
         msg(parent, sel("addChildWindow:ordered:"), w, ORDER_ABOVE);
         msg(w, sel("retain"));
         glassWindow = w;
@@ -191,33 +200,40 @@ public class LiquidGlassManager extends Manager {
         Pointer contentView = msg(parent, sel("contentView"));
         if (!isValid(contentView)) return;
 
-        double[] rect = screenRect(attachedNode, parent, contentView);
-        if (rect == null) { hide(); return; }
+        double[] full = screenRect(attachedNode, parent, contentView);
+        if (full == null) { hide(); return; }
 
         // Always clip to the window's content area so the overlay never spills over the titlebar
         // or outside the window (e.g. when the node scrolls out of view).
         ObjC.CGRect content = msgRect(parent, sel("contentRectForFrameRect:"),
                 msgRect(parent, sel("frame")));
-        rect = intersect(rect, new double[]{ content.x, content.y, content.width, content.height });
+        double[] vis = intersect(full, new double[]{ content.x, content.y, content.width, content.height });
 
         // Optional caller-provided clip region (e.g. a ScrollPane viewport).
-        if (rect != null && clipNode != null) {
-            rect = intersect(rect, screenRect(clipNode, parent, contentView));
+        if (vis != null && clipNode != null) {
+            vis = intersect(vis, screenRect(clipNode, parent, contentView));
         }
 
-        if (rect == null) { hide(); return; }
+        if (vis == null) { hide(); return; }
 
-        double x = rect[0], y = rect[1], w = rect[2], h = rect[3];
+        double vx = vis[0], vy = vis[1], vw = vis[2], vh = vis[3];
+        double fw = full[2], fh = full[3];
+        double offX = full[0] - vx, offY = full[1] - vy;
         show();
 
         if (!force && lastRect != null
-                && lastRect[0] == x && lastRect[1] == y && lastRect[2] == w && lastRect[3] == h) {
+                && lastRect[0] == vx && lastRect[1] == vy && lastRect[2] == vw && lastRect[3] == vh
+                && lastRect[4] == offX && lastRect[5] == offY && lastRect[6] == fw && lastRect[7] == fh) {
             return;
         }
-        lastRect = new double[]{ x, y, w, h };
+        lastRect = new double[]{ vx, vy, vw, vh, offX, offY, fw, fh };
 
-        ObjC.CGRect frame = new ObjC.CGRect(x, y, w, h);
-        msg(glassWindow, sel("setFrame:display:"), frame, 1L);
+        // Window covers only the visible region; the glass view keeps its full size and is offset
+        // inside the container, so the overflow (and rounded corners) are clipped, not squeezed.
+        msg(glassWindow, sel("setFrame:display:"), new ObjC.CGRect(vx, vy, vw, vh), 1L);
+        if (isValid(glassView)) {
+            msg(glassView, sel("setFrame:"), new ObjC.CGRect(offX, offY, fw, fh));
+        }
     }
 
     /**
@@ -291,6 +307,7 @@ public class LiquidGlassManager extends Manager {
             msg(glassWindow, sel("release"));
         }
         glassWindow = null;
+        glassContainer = null;
         glassView = null;
         attachedNode = null;
         clipNode = null;

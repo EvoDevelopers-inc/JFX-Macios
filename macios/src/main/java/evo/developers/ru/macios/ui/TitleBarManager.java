@@ -14,7 +14,7 @@ public class TitleBarManager extends Manager {
 
     private static final long STYLE_FULL_SIZE_CONTENT_VIEW = 1 << 15;
 
-    /** Standard window buttons for {@link #standardWindowButton}. */
+    /** Standard window buttons for {@link }. */
     public static final int BUTTON_CLOSE = 0;
     public static final int BUTTON_MINIATURIZE = 1;
     public static final int BUTTON_ZOOM = 2;

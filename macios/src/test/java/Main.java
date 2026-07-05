@@ -107,7 +107,7 @@ public class Main extends Application {
         stage.setScene(scene);
         stage.setOnShown(e -> Platform.runLater(() -> {
             // Setup transparent titlebar
-            helperMacOS.getTitleBarManager().setupNoTitlebar(0);
+            helperMacOS.getTitleBarManager().setupTransparentTitlebar();
             helperMacOS.getTitleBarManager().enableWindowDrag();
 
             // Apply initial blur
@@ -296,6 +296,11 @@ public class Main extends Application {
         VBox metalCard = createMetalCard();
         cards.add(metalCard);
         content.getChildren().add(metalCard);
+
+        // WebView (WKWebView) Card
+        VBox webViewCard = createWebViewCard();
+        cards.add(webViewCard);
+        content.getChildren().add(webViewCard);
 
         // Permissions Card
         VBox permissionsCard = createPermissionsCard();
@@ -945,6 +950,77 @@ public class Main extends Application {
         buttons.setAlignment(Pos.CENTER_LEFT);
 
         controls.getChildren().addAll(support, areaStack, buttons);
+        card.getChildren().add(controls);
+        return card;
+    }
+
+    private VBox createWebViewCard() {
+        VBox card = createCard("\uD83C\uDF10 WebView (WKWebView)",
+            "Heavy native Apple WebKit view overlaid on a JavaFX node");
+
+        VBox controls = new VBox(12);
+        controls.setPadding(new Insets(15, 0, 0, 0));
+
+        boolean supported = helperMacOS.getWebView().isSupported();
+        Label status = new Label(supported ? "✅ WKWebView available" : "⚠️ WebKit not available");
+        status.setStyle("-fx-text-fill: rgba(255,255,255,0.9); -fx-font-size: 13px;");
+
+        Region webArea = new Region();
+        webArea.setMinHeight(240);
+        webArea.setPrefHeight(240);
+        webArea.setMaxWidth(Double.MAX_VALUE);
+        webArea.setStyle("-fx-border-color: rgba(255,255,255,0.25); -fx-border-width: 1;"
+            + "-fx-border-style: dashed; -fx-border-radius: 12;");
+
+        Label hint = new Label("The WKWebView renders over this area");
+        hint.setStyle("-fx-text-fill: rgba(255,255,255,0.6); -fx-font-size: 12px;");
+        StackPane areaStack = new StackPane(webArea, hint);
+
+        TextField urlField = new TextField("https://www.apple.com");
+        urlField.setPromptText("https://…");
+        HBox.setHgrow(urlField, Priority.ALWAYS);
+
+        Button attach = new Button("Attach");
+        styleButton(attach);
+        attach.setOnAction(e -> {
+            helperMacOS.getWebView().attach(webArea, scrollPane);
+            helperMacOS.getWebView().loadUrl(urlField.getText());
+            status.setText("🌐 Loading " + urlField.getText());
+        });
+
+        Button go = new Button("Load");
+        styleButton(go);
+        go.setOnAction(e -> {
+            helperMacOS.getWebView().loadUrl(urlField.getText());
+            status.setText("🌐 Loading " + urlField.getText());
+        });
+
+        Button back = new Button("◀");
+        styleButton(back);
+        back.setOnAction(e -> helperMacOS.getWebView().goBack());
+
+        Button fwd = new Button("▶");
+        styleButton(fwd);
+        fwd.setOnAction(e -> helperMacOS.getWebView().goForward());
+
+        Button reload = new Button("↻");
+        styleButton(reload);
+        reload.setOnAction(e -> helperMacOS.getWebView().reload());
+
+        Button stop = new Button("Detach");
+        styleButton(stop);
+        stop.setOnAction(e -> {
+            helperMacOS.getWebView().detach();
+            status.setText(supported ? "✅ WKWebView available" : "⚠️ WebKit not available");
+        });
+
+        HBox urlRow = new HBox(10, urlField, go);
+        urlRow.setAlignment(Pos.CENTER_LEFT);
+
+        HBox buttons = new HBox(10, attach, back, fwd, reload, stop);
+        buttons.setAlignment(Pos.CENTER_LEFT);
+
+        controls.getChildren().addAll(status, areaStack, urlRow, buttons);
         card.getChildren().add(controls);
         return card;
     }

@@ -43,6 +43,11 @@ public class ObjCRuntime {
         long invoke(Pointer self, Pointer cmd, Pointer arg);
     }
 
+    /** {@code -(BOOL)sel} — type encoding {@code "c@:"} (e.g. {@code canBecomeKeyWindow}). */
+    public interface BoolMethod extends Callback {
+        byte invoke(Pointer self, Pointer cmd);
+    }
+
     /** {@code -(void)sel:(id)a b:(id)c} — type encoding {@code "v@:@@"}. */
     public interface VoidObjObjMethod extends Callback {
         void invoke(Pointer self, Pointer cmd, Pointer a, Pointer b);

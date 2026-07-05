@@ -25,6 +25,7 @@ Native macOS integration for **JavaFX**, written in pure Java on top of [JNA](ht
   - [Window effects](#window-effects)
   - [Liquid Glass](#liquid-glass)
   - [Metal layer](#metal-layer)
+  - [WebView (WKWebView)](#webview-wkwebview)
   - [Title bar & window controls](#title-bar--window-controls)
   - [Window security](#window-security)
   - [Window tabs](#window-tabs)
@@ -111,6 +112,7 @@ JavaFX has no built-in access to modern macOS UI and system APIs. JFX-Macios bri
 | System | **Permissions** (TCC): check / request / open settings for camera, mic, screen recording, accessibility, contacts, calendar, reminders, photos, notifications | ✅ |
 | System | **Push (APNs)** registration + device token & remote-notification callbacks | ✅ |
 | Effects | **Metal layer** (`CAMetalLayer`) overlay with an animated render loop | ✅ |
+| Effects | **WebView** (`WKWebView`) native Apple WebKit overlay, interactive | ✅ |
 
 ---
 
@@ -228,6 +230,23 @@ if (metal.isMetalSupported()) {
 }
 
 metal.detach();
+```
+
+### WebView (WKWebView)
+
+A real Apple `WKWebView` rendered in a borderless child window overlaid on a JavaFX node, using the same anchor/clip/positioning approach as the Metal layer. It is **interactive** — mouse clicks, scrolling, and keyboard input all work (the host window is a key-capable `NSWindow` subclass). When the anchor scrolls partly out of view, the content is **clipped, not resized** — the view keeps its full size and is offset inside a clipping container.
+
+```java
+WebViewManager web = helper.getWebView();
+
+if (web.isSupported()) {
+    web.attach(webPlaceholderRegion, scrollPane); // clip optional
+    web.loadUrl("https://www.apple.com");
+    // web.loadHtml("<h1>Hello</h1>");
+    // web.goBack(); web.goForward(); web.reload();
+}
+
+web.detach();
 ```
 
 ### Title bar & window controls

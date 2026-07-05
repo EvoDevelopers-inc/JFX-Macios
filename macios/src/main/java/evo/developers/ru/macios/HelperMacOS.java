@@ -21,6 +21,7 @@ import evo.developers.ru.macios.ux.push.PushNotificationManager;
 import evo.developers.ru.macios.ux.share.ShareManager;
 import evo.developers.ru.macios.ux.toolbar.ToolbarManager;
 import evo.developers.ru.macios.ux.tray.StatusBarManager;
+import evo.developers.ru.macios.ux.web.WebViewManager;
 import evo.developers.ru.macios.ux.window.WindowTabManager;
 import javafx.stage.Stage;
 import lombok.Getter;
@@ -59,6 +60,7 @@ public class HelperMacOS {
     private final WindowTabManager windowTab;
     private final LiquidGlassManager liquidGlass;
     private final MetalLayerManager metal;
+    private final WebViewManager webView;
     private final PermissionsManager permissions;
     private final PushNotificationManager push;
 
@@ -86,6 +88,7 @@ public class HelperMacOS {
         windowTab = new WindowTabManager(stage, pointer);
         liquidGlass = new LiquidGlassManager(stage, pointer);
         metal = new MetalLayerManager(stage, pointer);
+        webView = new WebViewManager(stage, pointer);
         permissions = new PermissionsManager(stage, pointer);
         push = new PushNotificationManager(stage, pointer);
     }
