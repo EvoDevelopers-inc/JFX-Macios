@@ -23,14 +23,25 @@ Native macOS integration for **JavaFX**, written in pure Java on top of [JNA](ht
 - [Getting started](#getting-started)
 - [Usage](#usage)
   - [Window effects](#window-effects)
+  - [Liquid Glass](#liquid-glass)
+  - [Metal layer](#metal-layer)
   - [Title bar & window controls](#title-bar--window-controls)
   - [Window security](#window-security)
+  - [Window tabs](#window-tabs)
+  - [Share sheet](#share-sheet)
+  - [Toolbar (NSToolbar)](#toolbar-nstoolbar)
   - [Menu bar (NSMenu)](#menu-bar-nsmenu)
+  - [Context menu](#context-menu)
   - [Dock menu & badge](#dock-menu--badge)
   - [Menu-bar status item (tray)](#menu-bar-status-item-tray)
+  - [Alerts & sheets](#alerts--sheets)
   - [Notifications](#notifications)
   - [Now Playing & media keys](#now-playing--media-keys)
   - [Touch ID / biometrics](#touch-id--biometrics)
+  - [Keychain](#keychain)
+  - [Permissions (TCC)](#permissions-tcc)
+  - [Push notifications (APNs)](#push-notifications-apns)
+  - [Handoff / Spotlight (NSUserActivity)](#handoff--spotlight-nsuseractivity)
   - [System sounds & haptics](#system-sounds--haptics)
   - [Theme & accent color](#theme--accent-color)
 - [Architecture](#architecture)
@@ -75,11 +86,17 @@ JavaFX has no built-in access to modern macOS UI and system APIs. JFX-Macios bri
 | Effects | `NSVisualEffectView` blur (Light / Dark / Aqua / Dark Aqua) | ✅ |
 | Effects | 18 materials (Sidebar, Menu, Popover, HUD, …) | ✅ |
 | Effects | Alpha / transparency control | ✅ |
+| Effects | **Liquid Glass** (`NSGlassEffectView`, macOS 26) via overlay window | ✅ |
 | Window | Transparent / hidden title bar with native traffic lights | ✅ |
 | Window | Native window drag | ✅ |
 | Window | Close / minimize / zoom | ✅ |
+| Window | Native **toolbar** (`NSToolbar`) with SF Symbol buttons | ✅ |
+| Window | Native **window tabs** (`NSWindow` tabbing) | ✅ |
+| System | **Share sheet** (`NSSharingServicePicker`) — AirDrop, Messages, Mail | ✅ |
 | Security | Screenshot & screen-recording protection | ✅ |
+| Dialogs | Native **alerts / sheets** (`NSAlert`) | ✅ |
 | Menus | Custom app **menu bar** (`NSMenu`), sticky across focus changes | ✅ |
+| Menus | **Context menu** (native right-click menu) | ✅ |
 | Menus | **Dock menu** (right-click the Dock icon) | ✅ |
 | Menus | Menu-bar **status item** (tray) with clickable items | ✅ |
 | System | Dock **badge** (unread count / text) | ✅ |
@@ -89,7 +106,11 @@ JavaFX has no built-in access to modern macOS UI and system APIs. JFX-Macios bri
 | System | System sounds | ✅ |
 | System | Haptic feedback (Force Touch trackpad) | ✅ |
 | System | Dark-mode detection & accent color | ✅ |
-| Security | Keychain | ⚠️ deprecated |
+| System | **Handoff / Spotlight / Siri suggestions** (`NSUserActivity`) | ✅ |
+| Security | **Keychain** secure storage (`SecItem*`) | ✅ |
+| System | **Permissions** (TCC): check / request / open settings for camera, mic, screen recording, accessibility, contacts, calendar, reminders, photos, notifications | ✅ |
+| System | **Push (APNs)** registration + device token & remote-notification callbacks | ✅ |
+| Effects | **Metal layer** (`CAMetalLayer`) overlay with an animated render loop | ✅ |
 
 ---
 
@@ -150,8 +171,8 @@ public class App extends Application {
 
         // Native calls must run after the window exists.
         stage.setOnShown(e -> Platform.runLater(() -> {
-            helper.getTitleBarManager().setupTransparentTitlebar(stage.getTitle());
-            helper.getBlurEffect().apply(stage, BlurEffectManager.Style.DARK_AQUA);
+            helper.getTitleBarManager().setupTransparentTitlebar();
+            helper.getBlurEffect().apply(BlurEffectManager.Style.DARK_AQUA);
         }));
 
         stage.show();
@@ -161,7 +182,7 @@ public class App extends Application {
 }
 ```
 
-> **Note:** many methods identify the target window by its title (`stage.getTitle()`), so give each window a unique, stable title. Call native APIs after `stage` is shown (e.g. from `setOnShown` + `Platform.runLater`).
+> **Note:** every manager is bound to its `Stage`, so you never pass a window title — just call `helper.getX().doThing()`. Internally the window is resolved by its title, so give each window a unique, stable title, and call native APIs after `stage` is shown (e.g. from `setOnShown` + `Platform.runLater`).
 
 ---
 
@@ -172,9 +193,41 @@ public class App extends Application {
 ```java
 BlurEffectManager blur = helper.getBlurEffect();
 
-blur.apply(stage, BlurEffectManager.Style.DARK_AQUA); // LIGHT | DARK | AQUA | DARK_AQUA
-blur.setMaterial(Material.SIDEBAR);                    // 18 materials available
-blur.setAlpha(0.85);                                   // 0.0 – 1.0
+blur.apply(BlurEffectManager.Style.DARK_AQUA); // LIGHT | DARK | AQUA | DARK_AQUA
+blur.setMaterial(Material.SIDEBAR);            // 18 materials available
+blur.setAlpha(0.85);                           // 0.0 – 1.0
+```
+
+### Liquid Glass
+
+Real macOS 26 `NSGlassEffectView`, rendered as a borderless child window overlaid on a JavaFX node, so it genuinely refracts what's behind it. Automatically falls back to `NSVisualEffectView` on macOS &lt; 26. The overlay ignores mouse events (clicks pass through), so attach it to an empty placeholder node that defines the glass region.
+
+```java
+LiquidGlassManager glass = helper.getLiquidGlass();
+
+if (glass.isNativeGlassSupported()) { /* macOS 26+ */ }
+
+glass.setCornerRadius(18)
+     .setLightAppearance(true)                  // bright/frosty even in dark mode
+     .setTint(1.0, 1.0, 1.0, 0.08)              // subtle tint (native glass)
+     .setFallbackMaterial(Material.UNDER_WINDOW) // used only on macOS < 26
+     .attach(glassPlaceholderRegion, scrollPane); // clip to a scroll region (optional)
+
+glass.detach();
+```
+
+### Metal layer
+
+A real `CAMetalLayer` rendered in a borderless child window overlaid on a JavaFX node, driven by an animated render loop. Uses the same anchor/clip/positioning approach as Liquid Glass and ignores mouse events. Subclass `MetalLayerManager` and override `render(drawable, texture, seconds)` to drive your own Metal pipeline; the default cycles an animated clear color.
+
+```java
+MetalLayerManager metal = helper.getMetal();
+
+if (metal.isMetalSupported()) {
+    metal.attach(metalPlaceholderRegion, scrollPane); // clip optional
+}
+
+metal.detach();
 ```
 
 ### Title bar & window controls
@@ -182,16 +235,16 @@ blur.setAlpha(0.85);                                   // 0.0 – 1.0
 ```java
 TitleBarManager bar = helper.getTitleBarManager();
 
-bar.setupTransparentTitlebar(stage.getTitle()); // full-size content + native traffic lights
-bar.enableWindowDrag(stage.getTitle());
+bar.setupTransparentTitlebar(); // full-size content + native traffic lights
+bar.enableWindowDrag();
 
 // Drive a native drag from your custom header:
-header.setOnMousePressed(e -> bar.startWindowDrag(stage.getTitle()));
+header.setOnMousePressed(e -> bar.startWindowDrag());
 
 // Window operations:
-WindowManager.minimizeWindow();
-WindowManager.zoomWindow();
-WindowManager.closeWindow();
+helper.getWindowManager().minimize();
+helper.getWindowManager().zoom();
+helper.getWindowManager().close();
 ```
 
 ### Window security
@@ -199,8 +252,51 @@ WindowManager.closeWindow();
 ```java
 WindowSecurity security = helper.getWindowSecurity();
 
-security.setSecure(stage.getTitle(), true);       // hide from screenshots & screen recording
-boolean secure = security.isSecure(stage.getTitle());
+security.setSecure(true);          // hide from screenshots & screen recording
+boolean secure = security.isSecure();
+```
+
+### Window tabs
+
+Native `NSWindow` tabbing: give windows the same identifier and a preferred mode so the system groups them, or merge them explicitly.
+
+```java
+WindowTabManager tabs = helper.getWindowTab();
+
+tabs.setTabbingIdentifier("editor");
+tabs.setTabbingMode(WindowTabManager.TabbingMode.PREFERRED); // AUTOMATIC | PREFERRED | DISALLOWED
+
+tabs.addTab(otherStage);   // pull another window in as a tab
+tabs.toggleTabBar();
+tabs.selectNextTab();
+tabs.moveTabToNewWindow();
+int count = tabs.getTabCount();
+```
+
+### Share sheet
+
+The native Share sheet (`NSSharingServicePicker`) — AirDrop, Messages, Mail, Notes, etc. Anchored at the cursor, so trigger it from a button or menu handler.
+
+```java
+shareButton.setOnAction(e -> helper.getShare().shareText("Hello from JFX-Macios!"));
+
+helper.getShare().shareURL("https://github.com/EvoDevelopers-inc/JFX-Macios");
+helper.getShare().shareFiles("/path/to/report.pdf", "/path/to/photo.jpg");
+helper.getShare().shareImage("/path/to/image.png");
+```
+
+### Toolbar (NSToolbar)
+
+A native toolbar in the window title bar. Buttons use SF Symbols and run a `Runnable` on the JavaFX thread when clicked.
+
+```java
+helper.getToolbar()
+    .addButton("new",    "New",    "plus",                  () -> newItem())
+    .addButton("share",  "Share",  "square.and.arrow.up",   () -> share())
+    .addButton("delete", "Delete", "trash",                 () -> delete())
+    .apply();
+
+helper.getToolbar().remove(); // when you no longer need it
 ```
 
 ### Menu bar (NSMenu)
@@ -223,6 +319,18 @@ helper.getMenuBar()
 - `item(title, action)` / `item(title, keyEquivalent, action)` — runs a Java `Runnable` on the JavaFX thread.
 - `appItem(title, selector, key)` — wires an item to a standard `NSApp` selector (e.g. `terminate:`, `performClose:`, `hide:`).
 - `separator()` — adds a divider.
+
+### Context menu
+
+A native right-click menu built with the same fluent builder. Call it from any JavaFX node's `setOnContextMenuRequested`; the menu pops up at the cursor.
+
+```java
+node.setOnContextMenuRequested(e -> helper.getContextMenu().show(m -> m
+    .item("Copy", () -> copy())
+    .item("Paste", () -> paste())
+    .separator()
+    .item("Delete", () -> delete())));
+```
 
 ### Dock menu & badge
 
@@ -255,6 +363,24 @@ tray.addSeparator();
 tray.addQuitItem("Quit");
 
 tray.remove();                   // when you're done
+```
+
+### Alerts & sheets
+
+Native `NSAlert`, shown either as a window-attached sheet (non-blocking, preferred) or as a modal dialog. The result is the zero-based index of the pressed button.
+
+```java
+// Sheet: callback runs on the JavaFX thread
+helper.getAlert().showSheet(
+    "Delete this item?", "This action cannot be undone.",
+    AlertManager.Style.WARNING,           // WARNING | INFORMATIONAL | CRITICAL
+    new String[]{ "Delete", "Cancel" },
+    index -> { if (index == 0) delete(); });
+
+// Modal: blocks until the user responds
+int choice = helper.getAlert().showModal(
+    "Quit?", "You have unsaved changes.",
+    AlertManager.Style.INFORMATIONAL, "Save", "Discard", "Cancel");
 ```
 
 ### Notifications
@@ -319,6 +445,78 @@ if (BiometricManager.isBiometricsAvailable()) {
 boolean ok = helper.getBiometric().authenticateBlocking("Confirm identity", 30);
 ```
 
+### Keychain
+
+Store secrets (tokens, API keys, passwords) encrypted in the macOS login keychain. Both static and instance (`helper.getKeychain()`) forms are available.
+
+```java
+String service = "com.myapp.messenger";
+String account = "authToken";
+
+KeyChainManager.keychainStore(service, account, "s3cr3t");   // add or replace
+String token = KeyChainManager.keychainGet(service, account); // or null
+boolean has  = KeyChainManager.keychainExists(service, account);
+KeyChainManager.keychainDelete(service, account);
+```
+
+### Permissions (TCC)
+
+Check, request, and jump to System Settings for macOS privacy permissions. Requesting triggers the native OS prompt the first time; afterwards only the settings pane can change the choice, so send denied users straight to it.
+
+```java
+PermissionsManager perms = helper.getPermissions();
+
+PermissionStatus s = perms.status(Permission.CAMERA); // GRANTED / DENIED / NOT_DETERMINED / RESTRICTED / UNKNOWN
+
+perms.request(Permission.MICROPHONE, granted -> {
+    // called on the JavaFX thread
+});
+
+perms.openSettings(Permission.SCREEN_RECORDING); // exact Privacy pane
+```
+
+Supported: `NOTIFICATIONS`, `CAMERA`, `MICROPHONE`, `SCREEN_RECORDING`, `ACCESSIBILITY`, `INPUT_MONITORING`, `CONTACTS`, `CALENDAR`, `REMINDERS`, `PHOTOS`. Some prompts only appear for a code-signed `.app` with the matching `Info.plist` usage strings.
+
+### Push notifications (APNs)
+
+Register with Apple Push Notification service and receive the device token, failures, and incoming remote notifications. `register()` also requests notification authorization (a prerequisite for user-visible push alerts).
+
+```java
+helper.getPush()
+    .onToken(hex -> System.out.println("APNs token: " + hex))
+    .onError(err -> System.out.println("APNs error: " + err))
+    .onRemoteNotification(payload -> System.out.println("push: " + payload))
+    .register();
+
+helper.getPush().unregister();
+```
+
+> APNs requires a properly code-signed `.app` bundle carrying the `aps-environment` entitlement. Unsigned dev launches typically report a `no valid "aps-environment"` registration error via `onError`.
+
+### Handoff / Spotlight (NSUserActivity)
+
+Advertise an `NSUserActivity` so the current task can hand off to the user's other devices, appear in Spotlight, and feed Siri Suggestions / Shortcuts. This is the closest ecosystem hook available without an App Extension.
+
+```java
+helper.getUserActivity().newActivity("com.myapp.viewItem")
+    .title("Viewing item 42")
+    .info("id", "42")
+    .handoff(true)
+    .searchable(true)     // Spotlight
+    .prediction(true)     // Siri suggestions (macOS 10.15+)
+    .keywords("item", "42")
+    .become();
+
+// Receive an incoming Handoff / Spotlight continuation:
+helper.getUserActivity().onContinue((type, title, userInfo) -> {
+    if ("com.myapp.viewItem".equals(type)) openItem(userInfo.get("id"));
+});
+
+helper.getUserActivity().resignCurrent();
+```
+
+> Handoff between devices and Siri/Shortcuts integration require the app to be a signed, bundled `.app`; advertising and Spotlight work in-process.
+
 ### System sounds & haptics
 
 ```java
@@ -337,7 +535,7 @@ boolean dark   = ThemeManager.isDarkMode();
 String  accent = ThemeManager.getAccentColor();   // "Blue", "Purple", "Pink", …
 
 ThemeManager.startAppearanceListener(isDark -> Platform.runLater(() ->
-    helper.getBlurEffect().apply(stage,
+    helper.getBlurEffect().apply(
         isDark ? BlurEffectManager.Style.DARK : BlurEffectManager.Style.LIGHT)));
 ```
 

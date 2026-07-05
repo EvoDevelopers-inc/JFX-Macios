@@ -2,6 +2,8 @@ import evo.developers.ru.macios.HelperMacOS;
 import evo.developers.ru.macios.core.WindowManager;
 import evo.developers.ru.macios.effects.BlurEffectManager;
 import evo.developers.ru.macios.effects.Material;
+import evo.developers.ru.macios.permissions.Permission;
+import evo.developers.ru.macios.permissions.PermissionStatus;
 import evo.developers.ru.macios.ui.ThemeManager;
 import evo.developers.ru.macios.ui.TitleBarManager;
 import evo.developers.ru.macios.ux.dockbadge.DockBadgeManager;
@@ -54,6 +56,7 @@ public class Main extends Application {
     private List<VBox> cards = new ArrayList<>(); // Store all cards for dynamic style updates
     private Timer accentColorCheckTimer; // Timer to check for accent color changes
     private Button minimizeBtn, zoomBtn, closeBtn; // Window control buttons
+    private ScrollPane scrollPane; // Main scroll container (used as Liquid Glass clip region)
 
     @Override
     public void start(Stage stage) {
@@ -77,12 +80,12 @@ public class Main extends Application {
         // Title bar
         HBox header = createTitleBar();
         header.setPrefHeight(50);
-        header.setOnMousePressed(e -> helperMacOS.getTitleBarManager().startWindowDrag(stage.getTitle()));
+        header.setOnMousePressed(e -> helperMacOS.getTitleBarManager().startWindowDrag());
 
         root.setTop(header);
 
         // Main content with scroll
-        ScrollPane scrollPane = new ScrollPane();
+        scrollPane = new ScrollPane();
         scrollPane.setFitToWidth(true);
         scrollPane.setStyle("-fx-background: transparent; -fx-background-color: transparent;");
         scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
@@ -104,11 +107,11 @@ public class Main extends Application {
         stage.setScene(scene);
         stage.setOnShown(e -> Platform.runLater(() -> {
             // Setup transparent titlebar
-            helperMacOS.getTitleBarManager().setupNoTitlebar(stage.getTitle(), 0);
-            helperMacOS.getTitleBarManager().enableWindowDrag(stage.getTitle());
+            helperMacOS.getTitleBarManager().setupNoTitlebar(0);
+            helperMacOS.getTitleBarManager().enableWindowDrag();
 
             // Apply initial blur
-            helperMacOS.getBlurEffect().apply(stage, BlurEffectManager.Style.DARK_AQUA);
+            helperMacOS.getBlurEffect().apply(BlurEffectManager.Style.DARK_AQUA);
 
             // Update system info and apply accent color
             updateSystemInfo();
@@ -120,10 +123,10 @@ public class Main extends Application {
                     updateSystemInfo();
                     applyAccentColor();
                     if (isDark) {
-                        helperMacOS.getBlurEffect().apply(stage, BlurEffectManager.Style.DARK_AQUA);
+                        helperMacOS.getBlurEffect().apply(BlurEffectManager.Style.DARK_AQUA);
                         darkModeLabel.setText("🌙 Dark Mode");
                     } else {
-                        helperMacOS.getBlurEffect().apply(stage, BlurEffectManager.Style.LIGHT);
+                        helperMacOS.getBlurEffect().apply(BlurEffectManager.Style.LIGHT);
                         darkModeLabel.setText("☀️ Light Mode");
                     }
                     helperMacOS.getHapticManager().haptic(
@@ -162,7 +165,7 @@ public class Main extends Application {
 
         minimizeBtn = createWindowButton("Minimize", "Minimize");
         minimizeBtn.setOnAction(e -> {
-            WindowManager.minimizeWindow();
+            helperMacOS.getWindowManager().minimize();
             helperMacOS.getHapticManager().haptic(
                 HapticManager.HapticPattern.GENERIC,
                 HapticManager.HapticTime.NOW
@@ -171,7 +174,7 @@ public class Main extends Application {
 
         zoomBtn = createWindowButton("Zoom", "Zoom");
         zoomBtn.setOnAction(e -> {
-            WindowManager.zoomWindow();
+            helperMacOS.getWindowManager().zoom();
             helperMacOS.getHapticManager().haptic(
                 HapticManager.HapticPattern.GENERIC,
                 HapticManager.HapticTime.NOW
@@ -180,7 +183,7 @@ public class Main extends Application {
 
         closeBtn = createWindowButton("Close", "Close");
         closeBtn.setOnAction(e -> {
-            WindowManager.closeWindow();
+            helperMacOS.getWindowManager().close();
         });
 
         titleBar.getChildren().addAll(title, spacer, minimizeBtn, zoomBtn, closeBtn);
@@ -263,6 +266,46 @@ public class Main extends Application {
         VBox menuCard = createMenuCard();
         cards.add(menuCard);
         content.getChildren().add(menuCard);
+
+        // Toolbar + context menu + alerts Card
+        VBox nativeUiCard = createNativeUiCard();
+        cards.add(nativeUiCard);
+        content.getChildren().add(nativeUiCard);
+
+        // Keychain Card
+        VBox keychainCard = createKeychainCard();
+        cards.add(keychainCard);
+        content.getChildren().add(keychainCard);
+
+        // User activity (Handoff / Spotlight) Card
+        VBox activityCard = createActivityCard();
+        cards.add(activityCard);
+        content.getChildren().add(activityCard);
+
+        // Share + window tabs Card
+        VBox shareTabsCard = createShareTabsCard();
+        cards.add(shareTabsCard);
+        content.getChildren().add(shareTabsCard);
+
+        // Liquid Glass Card
+        VBox glassCard = createLiquidGlassCard();
+        cards.add(glassCard);
+        content.getChildren().add(glassCard);
+
+        // Metal layer Card
+        VBox metalCard = createMetalCard();
+        cards.add(metalCard);
+        content.getChildren().add(metalCard);
+
+        // Permissions Card
+        VBox permissionsCard = createPermissionsCard();
+        cards.add(permissionsCard);
+        content.getChildren().add(permissionsCard);
+
+        // Push (APNs) Card
+        VBox pushCard = createPushCard();
+        cards.add(pushCard);
+        content.getChildren().add(pushCard);
 
         // Touch ID Card
         VBox biometricCard = createBiometricCard();
@@ -629,7 +672,7 @@ public class Main extends Application {
             "-fx-text-fill: white;"
         );
         styleCombo.setOnAction(e -> {
-            helperMacOS.getBlurEffect().apply(primaryStage, styleCombo.getValue());
+            helperMacOS.getBlurEffect().apply(styleCombo.getValue());
             helperMacOS.getHapticManager().haptic(
                 HapticManager.HapticPattern.LEVEL_CHANGE,
                 HapticManager.HapticTime.NOW
@@ -794,6 +837,401 @@ public class Main extends Application {
         return card;
     }
 
+    private VBox createNativeUiCard() {
+        VBox card = createCard("🧰 Toolbar / Context menu / Alerts", "NSToolbar, right-click NSMenu, and NSAlert sheets");
+
+        VBox controls = new VBox(15);
+        controls.setPadding(new Insets(15, 0, 0, 0));
+
+        Label status = new Label("Try the buttons below");
+        status.setStyle("-fx-text-fill: rgba(255,255,255,0.85); -fx-font-size: 13px;");
+
+        Button toolbarBtn = new Button("Install toolbar");
+        styleButton(toolbarBtn);
+        toolbarBtn.setOnAction(e -> {
+            helperMacOS.getToolbar()
+                .addButton("new", "New", "plus", () -> status.setText("Toolbar: New"))
+                .addButton("share", "Share", "square.and.arrow.up", () -> status.setText("Toolbar: Share"))
+                .addButton("delete", "Delete", "trash", () -> status.setText("Toolbar: Delete"))
+                .apply();
+            status.setText("Toolbar installed — see the window title bar");
+        });
+
+        Button removeToolbarBtn = new Button("Remove toolbar");
+        styleButton(removeToolbarBtn);
+        removeToolbarBtn.setOnAction(e -> {
+            helperMacOS.getToolbar().remove();
+            status.setText("Toolbar removed");
+        });
+
+        Label contextArea = new Label("⤵ Right-click anywhere in this box for a native context menu");
+        contextArea.setStyle("-fx-text-fill: white; -fx-font-size: 13px; -fx-padding: 20;"
+            + "-fx-background-color: rgba(255,255,255,0.08); -fx-background-radius: 10;");
+        contextArea.setMaxWidth(Double.MAX_VALUE);
+        contextArea.setOnContextMenuRequested(e -> helperMacOS.getContextMenu().show(m -> m
+            .item("Copy", () -> status.setText("Context: Copy"))
+            .item("Paste", () -> status.setText("Context: Paste"))
+            .separator()
+            .item("Delete", () -> status.setText("Context: Delete"))));
+
+        Button sheetBtn = new Button("Show alert sheet");
+        styleButton(sheetBtn);
+        sheetBtn.setOnAction(e -> helperMacOS.getAlert().showSheet(
+            "Delete this item?",
+            "This action cannot be undone.",
+            evo.developers.ru.macios.ux.alert.AlertManager.Style.WARNING,
+            new String[]{ "Delete", "Cancel" },
+            index -> status.setText("Sheet result: " + (index == 0 ? "Delete" : "Cancel"))));
+
+        HBox toolbarButtons = new HBox(10, toolbarBtn, removeToolbarBtn, sheetBtn);
+        toolbarButtons.setAlignment(Pos.CENTER_LEFT);
+
+        controls.getChildren().addAll(status, toolbarButtons, contextArea);
+        card.getChildren().add(controls);
+        return card;
+    }
+
+    private VBox createLiquidGlassCard() {
+        VBox card = createCard("💧 Liquid Glass", "Real NSGlassEffectView via a child-window overlay");
+
+        VBox controls = new VBox(15);
+        controls.setPadding(new Insets(15, 0, 0, 0));
+
+        boolean supported = helperMacOS.getLiquidGlass().isNativeGlassSupported();
+        Label support = new Label(supported
+            ? "✅ NSGlassEffectView available (macOS 26+)"
+            : "⚠️ Falling back to NSVisualEffectView (macOS < 26)");
+        support.setStyle("-fx-text-fill: rgba(255,255,255,0.9); -fx-font-size: 13px;");
+
+        // Placeholder region whose on-screen bounds define the glass area.
+        Region glassArea = new Region();
+        glassArea.setMinHeight(160);
+        glassArea.setPrefHeight(160);
+        glassArea.setMaxWidth(Double.MAX_VALUE);
+        glassArea.setStyle("-fx-border-color: rgba(255,255,255,0.25); -fx-border-width: 1;"
+            + "-fx-border-style: dashed; -fx-border-radius: 18;");
+
+        // Colorful backdrop so the glass has something vivid to refract/blur (otherwise it just
+        // samples the dark card behind it and looks like a flat gray rectangle).
+        Region backdrop = new Region();
+        backdrop.setMaxWidth(Double.MAX_VALUE);
+        backdrop.setStyle("-fx-background-radius: 18;"
+            + "-fx-background-color: linear-gradient(to bottom right,"
+            + " #ff6ec4 0%, #7873f5 45%, #4ade80 100%);");
+
+        Label hint = new Label("The glass panel overlays this area");
+        hint.setStyle("-fx-text-fill: rgba(255,255,255,0.85); -fx-font-size: 12px;"
+            + "-fx-font-weight: bold;");
+        StackPane areaStack = new StackPane(backdrop, glassArea, hint);
+
+        Button attachBtn = new Button("Attach glass");
+        styleButton(attachBtn);
+        attachBtn.setOnAction(e -> {
+            helperMacOS.getLiquidGlass()
+                .setCornerRadius(18)
+                .setLightAppearance(true)
+                .setTint(1.0, 1.0, 1.0, 0.08)
+                .attach(glassArea, scrollPane);
+            support.setText(helperMacOS.getLiquidGlass().isUsingNativeGlass()
+                ? "💧 Native Liquid Glass attached"
+                : "💧 Blur fallback attached");
+        });
+
+        Button detachBtn = new Button("Detach");
+        styleButton(detachBtn);
+        detachBtn.setOnAction(e -> helperMacOS.getLiquidGlass().detach());
+
+        HBox buttons = new HBox(10, attachBtn, detachBtn);
+        buttons.setAlignment(Pos.CENTER_LEFT);
+
+        controls.getChildren().addAll(support, areaStack, buttons);
+        card.getChildren().add(controls);
+        return card;
+    }
+
+    private VBox createMetalCard() {
+        VBox card = createCard("🎇 Metal Layer", "Real CAMetalLayer overlay with an animated render loop");
+
+        VBox controls = new VBox(15);
+        controls.setPadding(new Insets(15, 0, 0, 0));
+
+        boolean supported = helperMacOS.getMetal().isMetalSupported();
+        Label status = new Label(supported ? "✅ Metal device available" : "⚠️ Metal not available");
+        status.setStyle("-fx-text-fill: rgba(255,255,255,0.9); -fx-font-size: 13px;");
+
+        Region metalArea = new Region();
+        metalArea.setMinHeight(160);
+        metalArea.setPrefHeight(160);
+        metalArea.setMaxWidth(Double.MAX_VALUE);
+        metalArea.setStyle("-fx-border-color: rgba(255,255,255,0.25); -fx-border-width: 1;"
+            + "-fx-border-style: dashed; -fx-border-radius: 12;");
+
+        Label hint = new Label("The Metal surface renders over this area");
+        hint.setStyle("-fx-text-fill: rgba(255,255,255,0.6); -fx-font-size: 12px;");
+        StackPane areaStack = new StackPane(metalArea, hint);
+
+        Button startBtn = new Button("Start");
+        styleButton(startBtn);
+        startBtn.setOnAction(e -> {
+            helperMacOS.getMetal().attach(metalArea, scrollPane);
+            status.setText("🎇 Metal layer rendering");
+        });
+
+        Button stopBtn = new Button("Stop");
+        styleButton(stopBtn);
+        stopBtn.setOnAction(e -> {
+            helperMacOS.getMetal().detach();
+            status.setText(supported ? "✅ Metal device available" : "⚠️ Metal not available");
+        });
+
+        HBox buttons = new HBox(10, startBtn, stopBtn);
+        buttons.setAlignment(Pos.CENTER_LEFT);
+
+        controls.getChildren().addAll(status, areaStack, buttons);
+        card.getChildren().add(controls);
+        return card;
+    }
+
+    private VBox createPermissionsCard() {
+        VBox card = createCard("🔐 Permissions", "Check / request macOS privacy permissions (TCC)");
+
+        VBox controls = new VBox(10);
+        controls.setPadding(new Insets(15, 0, 0, 0));
+
+        Permission[] perms = {
+            Permission.CAMERA, Permission.MICROPHONE, Permission.SCREEN_RECORDING,
+            Permission.ACCESSIBILITY, Permission.CONTACTS, Permission.CALENDAR,
+            Permission.REMINDERS, Permission.PHOTOS, Permission.NOTIFICATIONS
+        };
+
+        for (Permission p : perms) {
+            Label name = new Label(p.name());
+            name.setStyle("-fx-text-fill: rgba(255,255,255,0.9); -fx-font-size: 13px; -fx-font-weight: bold;");
+            name.setPrefWidth(160);
+
+            Label statusLabel = new Label(statusText(helperMacOS.getPermissions().status(p)));
+            statusLabel.setStyle("-fx-text-fill: rgba(255,255,255,0.7); -fx-font-size: 12px;");
+            statusLabel.setPrefWidth(150);
+
+            Button check = new Button("Check");
+            styleButton(check);
+            check.setOnAction(e -> statusLabel.setText(statusText(helperMacOS.getPermissions().status(p))));
+
+            Button request = new Button("Request");
+            styleButton(request);
+            request.setOnAction(e -> helperMacOS.getPermissions().request(p, granted ->
+                statusLabel.setText((granted ? "✅ granted" : "❌ denied")
+                    + " (" + statusText(helperMacOS.getPermissions().status(p)) + ")")));
+
+            Button settings = new Button("Settings");
+            styleButton(settings);
+            settings.setOnAction(e -> helperMacOS.getPermissions().openSettings(p));
+
+            HBox row = new HBox(10, name, statusLabel, check, request, settings);
+            row.setAlignment(Pos.CENTER_LEFT);
+            controls.getChildren().add(row);
+        }
+
+        card.getChildren().add(controls);
+        return card;
+    }
+
+    private String statusText(PermissionStatus s) {
+        switch (s) {
+            case GRANTED:        return "✅ granted";
+            case DENIED:         return "❌ denied";
+            case RESTRICTED:     return "🚫 restricted";
+            case NOT_DETERMINED: return "❔ not determined";
+            default:             return "… unknown (async)";
+        }
+    }
+
+    private VBox createPushCard() {
+        VBox card = createCard("📡 Push (APNs)", "Register for remote notifications and get the device token");
+
+        VBox controls = new VBox(12);
+        controls.setPadding(new Insets(15, 0, 0, 0));
+
+        Label status = new Label("Not registered");
+        status.setStyle("-fx-text-fill: rgba(255,255,255,0.9); -fx-font-size: 13px;");
+
+        TextField tokenField = new TextField();
+        tokenField.setEditable(false);
+        tokenField.setPromptText("APNs device token appears here");
+        tokenField.setStyle("-fx-font-size: 12px;");
+
+        Button registerBtn = new Button("Register");
+        styleButton(registerBtn);
+        registerBtn.setOnAction(e -> {
+            status.setText("Registering…");
+            helperMacOS.getPush()
+                .onToken(hex -> { tokenField.setText(hex); status.setText("✅ Registered"); })
+                .onError(err -> status.setText("❌ " + err))
+                .onRemoteNotification(payload -> status.setText("📩 Push received"))
+                .register();
+        });
+
+        Button unregisterBtn = new Button("Unregister");
+        styleButton(unregisterBtn);
+        unregisterBtn.setOnAction(e -> {
+            helperMacOS.getPush().unregister();
+            status.setText("Unregistered");
+        });
+
+        HBox buttons = new HBox(10, registerBtn, unregisterBtn);
+        buttons.setAlignment(Pos.CENTER_LEFT);
+
+        Label note = new Label("Requires a signed .app with the aps-environment entitlement — "
+            + "an unsigned dev launch usually reports a registration error.");
+        note.setWrapText(true);
+        note.setStyle("-fx-text-fill: rgba(255,255,255,0.55); -fx-font-size: 11px;");
+
+        controls.getChildren().addAll(status, tokenField, buttons, note);
+        card.getChildren().add(controls);
+        return card;
+    }
+
+    private VBox createShareTabsCard() {
+        VBox card = createCard("📤 Share / Window tabs", "NSSharingServicePicker + native NSWindow tabbing");
+
+        VBox controls = new VBox(15);
+        controls.setPadding(new Insets(15, 0, 0, 0));
+
+        Label status = new Label("Try sharing or open a tabbed window");
+        status.setStyle("-fx-text-fill: rgba(255,255,255,0.85); -fx-font-size: 13px;");
+
+        Button shareTextBtn = new Button("Share text");
+        styleButton(shareTextBtn);
+        shareTextBtn.setOnAction(e -> {
+            helperMacOS.getShare().shareText("Hello from JFX-Macios! Native macOS integration for JavaFX.");
+            status.setText("Share sheet opened (text)");
+        });
+
+        Button shareUrlBtn = new Button("Share URL");
+        styleButton(shareUrlBtn);
+        shareUrlBtn.setOnAction(e -> {
+            helperMacOS.getShare().shareURL("https://github.com/EvoDevelopers-inc/JFX-Macios");
+            status.setText("Share sheet opened (URL)");
+        });
+
+        Button newTabBtn = new Button("Open window as tab");
+        styleButton(newTabBtn);
+        newTabBtn.setOnAction(e -> {
+            tabCounter++;
+            Stage tab = new Stage();
+            tab.setTitle("JFX-Macios Tab " + tabCounter);
+            Label content = new Label("Tab window #" + tabCounter);
+            content.setStyle("-fx-text-fill: white; -fx-font-size: 20px;");
+            StackPane pane = new StackPane(content);
+            pane.setStyle("-fx-background-color: #202433;");
+            tab.setScene(new Scene(pane, 520, 380));
+            tab.setOnShown(ev -> Platform.runLater(() -> {
+                helperMacOS.getWindowTab().addTab(tab);
+                status.setText("Added tab (total: " + helperMacOS.getWindowTab().getTabCount() + ")");
+            }));
+            tab.show();
+        });
+
+        Button tabBarBtn = new Button("Toggle tab bar");
+        styleButton(tabBarBtn);
+        tabBarBtn.setOnAction(e -> helperMacOS.getWindowTab().toggleTabBar());
+
+        HBox row1 = new HBox(10, shareTextBtn, shareUrlBtn);
+        row1.setAlignment(Pos.CENTER_LEFT);
+        HBox row2 = new HBox(10, newTabBtn, tabBarBtn);
+        row2.setAlignment(Pos.CENTER_LEFT);
+
+        controls.getChildren().addAll(status, row1, row2);
+        card.getChildren().add(controls);
+        return card;
+    }
+
+    private VBox createKeychainCard() {
+        VBox card = createCard("🔑 Keychain", "Securely store secrets via Security.framework");
+
+        VBox controls = new VBox(15);
+        controls.setPadding(new Insets(15, 0, 0, 0));
+
+        final String service = "ru.evo.jfxmacios.demo";
+        final String account = "demoToken";
+
+        TextField valueField = new TextField("s3cr3t-token");
+        valueField.setPromptText("Secret value");
+        valueField.setStyle("-fx-background-color: rgba(255,255,255,0.15); -fx-text-fill: white;");
+
+        Label status = new Label("Not stored");
+        status.setStyle("-fx-text-fill: rgba(255,255,255,0.85); -fx-font-size: 13px;");
+
+        Button storeBtn = new Button("Store");
+        styleButton(storeBtn);
+        storeBtn.setOnAction(e -> {
+            boolean ok = evo.developers.ru.macios.security.KeyChainManager
+                .keychainStore(service, account, valueField.getText());
+            status.setText(ok ? "✅ Stored in Keychain" : "❌ Store failed");
+        });
+
+        Button getBtn = new Button("Read");
+        styleButton(getBtn);
+        getBtn.setOnAction(e -> {
+            String v = evo.developers.ru.macios.security.KeyChainManager.keychainGet(service, account);
+            status.setText(v == null ? "⚠️ Not found" : "Read: " + v);
+        });
+
+        Button deleteBtn = new Button("Delete");
+        styleButton(deleteBtn);
+        deleteBtn.setOnAction(e -> {
+            boolean ok = evo.developers.ru.macios.security.KeyChainManager.keychainDelete(service, account);
+            status.setText(ok ? "🗑 Deleted" : "❌ Delete failed");
+        });
+
+        HBox buttons = new HBox(10, storeBtn, getBtn, deleteBtn);
+        buttons.setAlignment(Pos.CENTER_LEFT);
+
+        controls.getChildren().addAll(valueField, buttons, status);
+        card.getChildren().add(controls);
+        return card;
+    }
+
+    private VBox createActivityCard() {
+        VBox card = createCard("🔗 Handoff / Spotlight", "Advertise NSUserActivity to the ecosystem");
+
+        VBox controls = new VBox(15);
+        controls.setPadding(new Insets(15, 0, 0, 0));
+
+        Label status = new Label("No activity advertised");
+        status.setStyle("-fx-text-fill: rgba(255,255,255,0.85); -fx-font-size: 13px;");
+
+        Button advertiseBtn = new Button("Advertise activity");
+        styleButton(advertiseBtn);
+        advertiseBtn.setOnAction(e -> {
+            helperMacOS.getUserActivity().onContinue((type, title, info) ->
+                status.setText("Continued: " + title + " " + info));
+            helperMacOS.getUserActivity().newActivity("ru.evo.jfxmacios.demo.view")
+                .title("Viewing the JFX-Macios demo")
+                .info("screen", "activity-card")
+                .handoff(true)
+                .searchable(true)
+                .prediction(true)
+                .keywords("jfx", "macios", "demo")
+                .become();
+            status.setText("Advertised — visible to Handoff / Spotlight");
+        });
+
+        Button resignBtn = new Button("Resign");
+        styleButton(resignBtn);
+        resignBtn.setOnAction(e -> {
+            helperMacOS.getUserActivity().resignCurrent();
+            status.setText("Activity resigned");
+        });
+
+        HBox buttons = new HBox(10, advertiseBtn, resignBtn);
+        buttons.setAlignment(Pos.CENTER_LEFT);
+
+        controls.getChildren().addAll(status, buttons);
+        card.getChildren().add(controls);
+        return card;
+    }
+
     private VBox createBiometricCard() {
         VBox card = createCard("👆 Touch ID", "Biometric authentication via LocalAuthentication");
 
@@ -825,6 +1263,7 @@ public class Main extends Application {
     }
 
     private boolean nowPlayingReady = false;
+    private int tabCounter = 0;
 
     private VBox createNowPlayingCard() {
         VBox card = createCard("🎵 Now Playing", "MPNowPlayingInfoCenter + media key handling");
@@ -907,7 +1346,7 @@ public class Main extends Application {
             "-fx-text-fill: white;"
         );
         securityToggle.selectedProperty().addListener((obs, old, selected) -> {
-            helperMacOS.getWindowSecurity().setSecure(primaryStage.getTitle(), selected);
+            helperMacOS.getWindowSecurity().setSecure(selected);
             String accentRgb = String.format("rgba(%d,%d,%d,0.5)", 
                 (int)(accentColor.getRed() * 255),
                 (int)(accentColor.getGreen() * 255),

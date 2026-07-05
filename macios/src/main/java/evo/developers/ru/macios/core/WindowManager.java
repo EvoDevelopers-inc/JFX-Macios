@@ -55,6 +55,24 @@ public class WindowManager extends Manager {
         return msg(windows, sel("objectAtIndex:"), 0L);
     }
 
+    /** Closes this manager's window. */
+    public void close() {
+        Pointer window = window();
+        if (window != null) msg(window, sel("close"));
+    }
+
+    /** Minimizes this manager's window to the Dock. */
+    public void minimize() {
+        Pointer window = window();
+        if (window != null) msg(window, sel("miniaturize:"), Pointer.NULL);
+    }
+
+    /** Toggles zoom (green traffic-light) for this manager's window. */
+    public void zoom() {
+        Pointer window = window();
+        if (window != null) msg(window, sel("zoom:"), Pointer.NULL);
+    }
+
     public static void closeWindow() {
         Pointer window = getFirstWindow();
         if (window != null) msg(window, sel("close"));

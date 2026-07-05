@@ -58,9 +58,35 @@ public class ObjCRuntime {
         Pointer invoke(Pointer self, Pointer cmd, Pointer arg);
     }
 
+    /**
+     * {@code -(id)sel:(id)a b:(id)c d:(BOOL)e} — type encoding {@code "@@:@@c"}
+     * (e.g. {@code toolbar:itemForItemIdentifier:willBeInsertedIntoToolbar:}).
+     */
+    public interface ObjObjObjBoolMethod extends Callback {
+        Pointer invoke(Pointer self, Pointer cmd, Pointer a, Pointer b, byte c);
+    }
+
+    /**
+     * {@code -(BOOL)sel:(id)a b:(id)c d:(id)e} — type encoding {@code "c@:@@@"}
+     * (e.g. {@code application:continueUserActivity:restorationHandler:}).
+     */
+    public interface BoolObjObjObjMethod extends Callback {
+        byte invoke(Pointer self, Pointer cmd, Pointer a, Pointer b, Pointer c);
+    }
+
     /** The invoke function of a {@code void(^)(BOOL, NSError*)} block: first arg is the block itself. */
     public interface BoolErrorBlock extends Callback {
         void invoke(Pointer block, byte success, Pointer error);
+    }
+
+    /** The invoke function of a {@code void(^)(NSInteger)} block: first arg is the block itself. */
+    public interface LongBlock extends Callback {
+        void invoke(Pointer block, long value);
+    }
+
+    /** The invoke function of a {@code void(^)(BOOL)} block: first arg is the block itself. */
+    public interface BoolBlock extends Callback {
+        void invoke(Pointer block, byte value);
     }
 
     private ObjCRuntime() { }
@@ -119,6 +145,15 @@ public class ObjCRuntime {
      * so a global block (whose copy/dispose are no-ops) is safe and never freed.
      */
     public static Pointer createBoolErrorBlock(BoolErrorBlock impl) {
+        return createGlobalBlock(impl);
+    }
+
+    /**
+     * Builds a global Objective-C block wrapping any callback whose first parameter is the
+     * block itself. The block captures nothing, so a global block (whose copy/dispose are
+     * no-ops) is safe and never freed.
+     */
+    public static Pointer createGlobalBlock(Callback impl) {
         KEEP_ALIVE.add(impl);
         if (globalBlockIsa == null) {
             globalBlockIsa = NativeLibrary.getInstance("System").getGlobalVariableAddress("_NSConcreteGlobalBlock");

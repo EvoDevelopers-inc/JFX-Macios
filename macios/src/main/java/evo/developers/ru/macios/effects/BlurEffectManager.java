@@ -34,6 +34,11 @@ public class BlurEffectManager extends Manager {
     private double currentAlpha = 1.0;
     private Material currentMaterial = Material.SIDEBAR;
     
+    /** Applies the blur to this manager's window. */
+    public void apply(Style style) {
+        apply(getStage(), style);
+    }
+
     public void apply(Stage stage, Style style) {
         try {
             Pointer window = WindowManager.getCurrentWindow(stage.getTitle());

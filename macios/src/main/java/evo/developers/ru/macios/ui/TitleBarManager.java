@@ -2,137 +2,91 @@ package evo.developers.ru.macios.ui;
 
 import com.sun.jna.Pointer;
 import evo.developers.ru.macios.base.Manager;
-import evo.developers.ru.macios.core.WindowManager;
-import javafx.scene.layout.Region;
 import javafx.stage.Stage;
 
 import static evo.developers.ru.macios.core.ObjC.*;
-import static evo.developers.ru.macios.core.ObjC.msg;
-import static evo.developers.ru.macios.core.ObjC.msgLong;
-import static evo.developers.ru.macios.core.ObjC.sel;
 
+/**
+ * Controls the native window title bar: transparent / hidden title bars with native
+ * traffic lights, and native window dragging.
+ */
 public class TitleBarManager extends Manager {
+
+    private static final long STYLE_FULL_SIZE_CONTENT_VIEW = 1 << 15;
+
+    /** Standard window buttons for {@link #standardWindowButton}. */
+    public static final int BUTTON_CLOSE = 0;
+    public static final int BUTTON_MINIATURIZE = 1;
+    public static final int BUTTON_ZOOM = 2;
 
     public TitleBarManager(Stage stage, Pointer pointerWindow) {
         super(stage, pointerWindow);
     }
 
-    /**
-     * Enable dragging window by its background.
-     */
-    public static void enableWindowDrag(String title) {
-        try {
-            Pointer window = WindowManager.getCurrentWindow(title);
-            if (window == null) return;
+    /** Enables dragging the window by its background. */
+    public void enableWindowDrag() {
+        Pointer window = window();
+        if (window == null) return;
+        msg(window, sel("setMovable:"), 1L);
+        msg(window, sel("setMovableByWindowBackground:"), 1L);
+    }
 
-            msg(window, sel("setMovable:"), 1L);
-            msg(window, sel("setMovableByWindowBackground:"), 1L);
-        } catch (Exception e) {
-            System.out.println("WindowBlur error: " + e.getMessage());
+    /**
+     * Starts a native window drag (double-click zoom, edge snapping, smooth animation).
+     * Call this from a JavaFX {@code setOnMousePressed} handler on your custom header.
+     */
+    public void startWindowDrag() {
+        Pointer window = window();
+        if (window == null) return;
+        Pointer nsApp = msg(cls("NSApplication"), sel("sharedApplication"));
+        Pointer currentEvent = msg(nsApp, sel("currentEvent"));
+        if (isValid(currentEvent)) {
+            msg(window, sel("performWindowDragWithEvent:"), currentEvent);
         }
     }
 
     /**
-     * Start native window drag. Call this from JavaFX mousePressed event.
-     * This gives you native macOS window dragging with:
-     * - Double-click to zoom
-     * - Window snapping (drag to top/sides)
-     * - Smooth animation
+     * Full-size content view with a transparent title bar. Native traffic lights stay
+     * visible and functional; the title text is hidden.
      */
-    public static void startWindowDrag(String title) {
-        try {
-            Pointer window = WindowManager.getCurrentWindow(title);
-            if (window == null) return;
+    public void setupTransparentTitlebar() {
+        Pointer window = window();
+        if (window == null) return;
 
-            // Get current event from NSApp
-            Pointer nsApp = msg(cls("NSApplication"), sel("sharedApplication"));
-            Pointer currentEvent = msg(nsApp, sel("currentEvent"));
+        long mask = msgLong(window, sel("styleMask")) | STYLE_FULL_SIZE_CONTENT_VIEW;
+        msg(window, sel("setStyleMask:"), mask);
+        msg(window, sel("setTitlebarAppearsTransparent:"), 1L);
+        msg(window, sel("setTitleVisibility:"), 1L);
+        msg(window, sel("setMovable:"), 1L);
+        msg(window, sel("setMovableByWindowBackground:"), 1L);
 
-            if (currentEvent != null && Pointer.nativeValue(currentEvent) != 0) {
-                // Perform native window drag with current event
-                msg(window, sel("performWindowDragWithEvent:"), currentEvent);
-            }
-        } catch (Exception e) {
-            System.out.println("WindowBlur startWindowDrag error: " + e.getMessage());
-        }
+        Pointer contentView = msg(window, sel("contentView"));
+        if (isValid(contentView)) msg(contentView, sel("setWantsLayer:"), 1L);
     }
-
-    private static final long NSWindowStyleMaskTitled = 1 << 0;
-    private static final long NSWindowStyleMaskClosable = 1 << 1;
-    private static final long NSWindowStyleMaskMiniaturizable = 1 << 2;
-    private static final long NSWindowStyleMaskResizable = 1 << 3;
-    private static final long NSWindowStyleMaskFullSizeContentView = 1 << 15;
 
     /**
-     * Setup window for custom titlebar with native behavior.
-     * Keeps native traffic lights visible and functional.
-     * Native drag and window snapping all work.
+     * Full-size content view with the traffic-light buttons hidden.
+     *
+     * @param titleTextVisibility {@code 0} shows the title, {@code 1} hides it
      */
-    public static void setupTransparentTitlebar(String title) {
-        try {
-            Pointer window = WindowManager.getCurrentWindow(title);
-            if (window == null) return;
+    public void setupNoTitlebar(long titleTextVisibility) {
+        Pointer window = window();
+        if (window == null) return;
 
-            // Get current style mask and add FullSizeContentView
-            long currentMask = msgLong(window, sel("styleMask"));
-            long newMask = currentMask | NSWindowStyleMaskFullSizeContentView;
-            msg(window, sel("setStyleMask:"), newMask);
+        long mask = msgLong(window, sel("styleMask")) | STYLE_FULL_SIZE_CONTENT_VIEW;
+        msg(window, sel("setStyleMask:"), mask);
+        msg(window, sel("setTitlebarAppearsTransparent:"), 1L);
+        msg(window, sel("setTitleVisibility:"), titleTextVisibility);
+        msg(window, sel("setMovable:"), 1L);
+        msg(window, sel("setMovableByWindowBackground:"), 1L);
 
-            // Make titlebar transparent but keep it functional
-            msg(window, sel("setTitlebarAppearsTransparent:"), 1L);
-
-            // Hide title text
-            msg(window, sel("setTitleVisibility:"), 1L);
-
-            // Enable native window dragging
-            msg(window, sel("setMovable:"), 1L);
-            msg(window, sel("setMovableByWindowBackground:"), 1L);
-
-            // Make contentView also allow dragging
-            Pointer contentView = msg(window, sel("contentView"));
-            if (contentView != null && Pointer.nativeValue(contentView) != 0) {
-                // Register for mouse events
-                msg(contentView, sel("setWantsLayer:"), 1L);
-            }
-
-            System.out.println("WindowBlur: Transparent titlebar with native behavior");
-        } catch (Exception e) {
-            System.out.println("WindowBlur error: " + e.getMessage());
-        }
-    }
-
-    public static void setupNoTitlebar(String title, long visiblityTitleText) {
-        try {
-            Pointer window = WindowManager.getCurrentWindow(title);
-            if (window == null) return;
-
-            long currentMask = msgLong(window, sel("styleMask"));
-            long newMask = currentMask | NSWindowStyleMaskFullSizeContentView;
-
-            msg(window, sel("setStyleMask:"), newMask);
-
-            msg(window, sel("setTitlebarAppearsTransparent:"), 1L);
-            msg(window, sel("setTitleVisibility:"), visiblityTitleText);
-
-            msg(window, sel("setMovable:"), 1L);
-            msg(window, sel("setMovableByWindowBackground:"), 1L);
-
-            hideWindowButton(window, 0);
-            hideWindowButton(window, 1);
-            hideWindowButton(window, 2);
-
-            System.out.println("WindowBlur: buttons hidden");
-
-        } catch (Exception e) {
-            System.out.println("WindowBlur error: " + e.getMessage());
-        }
+        hideWindowButton(window, BUTTON_CLOSE);
+        hideWindowButton(window, BUTTON_MINIATURIZE);
+        hideWindowButton(window, BUTTON_ZOOM);
     }
 
     private static void hideWindowButton(Pointer window, int type) {
         Pointer button = msg(window, sel("standardWindowButton:"), (long) type);
-
-        if (button != null && Pointer.nativeValue(button) != 0) {
-            msg(button, sel("setHidden:"), 1L);
-        }
+        if (isValid(button)) msg(button, sel("setHidden:"), 1L);
     }
 }

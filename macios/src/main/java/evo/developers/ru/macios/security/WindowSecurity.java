@@ -1,16 +1,17 @@
 package evo.developers.ru.macios.security;
 
-
 import com.sun.jna.Pointer;
 import evo.developers.ru.macios.base.Manager;
-import evo.developers.ru.macios.core.ObjC;
-import evo.developers.ru.macios.core.WindowManager;
 import javafx.stage.Stage;
 
-import static evo.developers.ru.macios.core.ObjC.msg;
-import static evo.developers.ru.macios.core.ObjC.sel;
+import static evo.developers.ru.macios.core.ObjC.*;
 
+/**
+ * Controls whether the window can be captured by screenshots and screen recording,
+ * via {@code NSWindow.sharingType}.
+ */
 public class WindowSecurity extends Manager {
+
     public WindowSecurity(Stage stage, Pointer pointerWindow) {
         super(stage, pointerWindow);
     }
@@ -19,32 +20,25 @@ public class WindowSecurity extends Manager {
         NONE(0),
         READ_ONLY(1),
         READ_WRITE(2);
-        
+
         final long value;
         WindowSharingType(long value) { this.value = value; }
     }
-    
-    public void setSecure(String title, boolean secure) {
-        setWindowSharingType(title, secure ? WindowSharingType.NONE : WindowSharingType.READ_ONLY);
+
+    /** When {@code true}, the window becomes invisible to screenshots and screen recording. */
+    public void setSecure(boolean secure) {
+        setSharingType(secure ? WindowSharingType.NONE : WindowSharingType.READ_ONLY);
     }
-    
-    public boolean isSecure(String title) {
-        Pointer window = WindowManager.getCurrentWindow(title);
+
+    public boolean isSecure() {
+        Pointer window = window();
         if (window == null) return false;
-        long sharingType = ObjC.msgLong(window, sel("sharingType"));
-        return sharingType == WindowSharingType.NONE.value;
+        return msgLong(window, sel("sharingType")) == WindowSharingType.NONE.value;
     }
 
-    public static void setWindowSharingType(String title, WindowSharingType type) {
-        try {
-            Pointer window = WindowManager.getCurrentWindow(title);
-            if (window == null) return;
-
-            msg(window, sel("setSharingType:"), type.value);
-            System.out.println("WindowBlur: Window sharing set to " + type.name());
-
-        } catch (Exception e) {
-            System.out.println("WindowBlur setWindowSharingType error: " + e.getMessage());
-        }
+    public void setSharingType(WindowSharingType type) {
+        Pointer window = window();
+        if (window == null) return;
+        msg(window, sel("setSharingType:"), type.value);
     }
 }
