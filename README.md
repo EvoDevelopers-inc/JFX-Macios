@@ -240,10 +240,37 @@ A real Apple `WKWebView` rendered in a borderless child window overlaid on a Jav
 WebViewManager web = helper.getWebView();
 
 if (web.isSupported()) {
+    web.setCornerRadius(12);                       // uniform rounded corners (continuous), 0 = square
+    // or independent per-corner radii (top-left, top-right, bottom-right, bottom-left):
+    web.setCornerRadii(20, 20, 0, 0);              // CAShapeLayer mask
     web.attach(webPlaceholderRegion, scrollPane); // clip optional
+
+    // Page-load lifecycle handlers (delivered on the JavaFX thread):
+    web.addNavigationListener(new WebViewManager.NavigationListener() {
+        @Override public void onStarted(String url)  { System.out.println("loading " + url); }
+        @Override public void onFinished(String url)  { System.out.println("loaded  " + url); }
+        @Override public void onFailed(String url, String error) { System.out.println("failed " + url + ": " + error); }
+    });
+
     web.loadUrl("https://www.apple.com");
     // web.loadHtml("<h1>Hello</h1>");
     // web.goBack(); web.goForward(); web.reload();
+
+    // Current location / page state:
+    String url = web.getUrl();          // current URL (live on the FX thread, else last observed)
+    String title = web.getTitle();      // document title
+    boolean busy = web.isLoading();     // still loading?
+    double progress = web.getEstimatedProgress(); // 0.0 .. 1.0
+
+    // Run JavaScript (result stringified, delivered on the JavaFX thread):
+    web.evaluateJavaScript("document.title");                       // fire-and-forget
+    web.evaluateJavaScript("1 + 2", (result, error) -> {
+        if (error == null) System.out.println("result = " + result); // "3"
+    });
+
+    // Read the page content (delivered on the JavaFX thread):
+    web.getHtml((html, error) -> System.out.println(html)); // full document outerHTML
+    web.getText((text, error) -> System.out.println(text)); // visible body text
 }
 
 web.detach();

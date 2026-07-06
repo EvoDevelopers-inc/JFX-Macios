@@ -53,6 +53,14 @@ public class ObjCRuntime {
         void invoke(Pointer self, Pointer cmd, Pointer a, Pointer b);
     }
 
+    /**
+     * {@code -(void)sel:(id)a b:(id)c d:(id)e} — type encoding {@code "v@:@@@"}
+     * (e.g. {@code webView:didFailNavigation:withError:}).
+     */
+    public interface VoidObjObjObjMethod extends Callback {
+        void invoke(Pointer self, Pointer cmd, Pointer a, Pointer b, Pointer c);
+    }
+
     /** {@code -(BOOL)sel:(id)a b:(id)c} — type encoding {@code "c@:@@"}. */
     public interface BoolObjObjMethod extends Callback {
         byte invoke(Pointer self, Pointer cmd, Pointer a, Pointer b);
@@ -92,6 +100,14 @@ public class ObjCRuntime {
     /** The invoke function of a {@code void(^)(BOOL)} block: first arg is the block itself. */
     public interface BoolBlock extends Callback {
         void invoke(Pointer block, byte value);
+    }
+
+    /**
+     * The invoke function of a {@code void(^)(id, NSError*)} block: first arg is the block itself
+     * (e.g. {@code WKWebView}'s {@code evaluateJavaScript:completionHandler:}).
+     */
+    public interface ObjErrorBlock extends Callback {
+        void invoke(Pointer block, Pointer result, Pointer error);
     }
 
     private ObjCRuntime() { }
