@@ -118,29 +118,17 @@ JavaFX has no built-in access to modern macOS UI and system APIs. JFX-Macios bri
 
 ## Installation
 
-Build artifact coordinates (`group = evo.developers.ru`, `artifactId = jfx-macios`).
-
-The library is not yet on Maven Central. For now, publish to your local Maven repository:
-
-```bash
-cd macios
-gradle publishToMavenLocal
-```
-
-Then depend on it:
-
 ```groovy
 repositories {
-    mavenLocal()
-    mavenCentral()
+    maven { url 'https://jitpack.io' }
 }
 
 dependencies {
-    implementation 'evo.developers.ru:jfx-macios:1.0-SNAPSHOT'
-    implementation 'net.java.dev.jna:jna:5.18.1'
-    implementation 'net.java.dev.jna:jna-platform:5.18.1'
+    implementation 'com.github.EvoDevelopers-inc:JFX-Macios:v1.3.0'
 }
 ```
+
+JitPack builds the `macios` module. JNA comes transitively. A local publish still uses `evo.developers.ru:jfx-macios` from `./gradlew publishToMavenLocal` inside `macios`.
 
 ---
 

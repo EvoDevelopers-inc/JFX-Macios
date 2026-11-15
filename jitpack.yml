@@ -1,0 +1,4 @@
+jdk:
+  - openjdk21
+install:
+  - cd macios && ./gradlew publishToMavenLocal -x test -PpublishedGroup=com.github.EvoDevelopers-inc -PpublishedArtifact=JFX-Macios -PpublishedVersion=v1.3.0
