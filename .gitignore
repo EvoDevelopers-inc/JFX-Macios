@@ -13,6 +13,7 @@
 **/.idea/
 # Package Files #
 *.jar
+!macios/gradle/wrapper/gradle-wrapper.jar
 *.war
 *.nar
 *.ear

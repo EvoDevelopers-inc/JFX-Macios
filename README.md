@@ -124,7 +124,7 @@ repositories {
 }
 
 dependencies {
-    implementation 'com.github.EvoDevelopers-inc:JFX-Macios:v1.3.0'
+    implementation 'com.github.EvoDevelopers-inc:JFX-Macios:v1.3.1'
 }
 ```
 
